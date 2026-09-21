@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Returning to Dock Check-In</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+<h1>Returning to Dock Check-In</h1>
+<p class="meta">Dock Check-In, by Red Works LLC</p>
+<p id="msg">One moment.</p>
+<noscript><p>Dock Check-In needs JavaScript to finish connecting.</p></noscript>
+</main>
+<script>
+(function() {
+  function decodeStateOrigin(state) {
+    var idx = state.lastIndexOf('.');
+    if (idx === -1) return null;
+    var b64 = state.slice(idx + 1);
+    var b64std = b64.replace(/-/g, '+').replace(/_/g, '/');
+    while (b64std.length % 4 !== 0) { b64std += '='; }
+    try {
+      return atob(b64std);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function isPrivateHost(hostname) {
+    if (hostname === 'localhost') return true;
+    if (hostname.slice(-6) === '.local') return true;
+    if (hostname === '[::1]') return true;
+    var m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(hostname);
+    if (m) {
+      var o1 = Number(m[1]), o2 = Number(m[2]), o3 = Number(m[3]), o4 = Number(m[4]);
+      if (o1 > 255 || o2 > 255 || o3 > 255 || o4 > 255) return false;
+      if (o1 === 127) return true;
+      if (o1 === 10) return true;
+      if (o1 === 192 && o2 === 168) return true;
+      if (o1 === 172 && o2 >= 16 && o2 <= 31) return true;
+    }
+    return false;
+  }
+
+  function decideTarget(state) {
+    var decoded;
+    try {
+      decoded = decodeStateOrigin(state);
+      if (!decoded) return null;
+      var url = new URL(decoded);
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+      if (url.pathname !== '/' && url.pathname !== '') return null;
+      if (url.username || url.password) return null;
+      if (!isPrivateHost(url.hostname)) return null;
+      return url;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  var q = location.search;
+  var params = new URLSearchParams(q);
+  var state = params.get('state') || '';
+  var target = decideTarget(state);
+  if (target) {
+    location.replace(target.origin + '/qbo/callback' + q);
+  } else {
+    var msg = document.getElementById('msg');
+    if (msg) {
+      msg.textContent = 'This sign-in did not start from Dock Check-In, so it was not forwarded. Start again from the QuickBooks screen in Dock Check-In.';
+    }
+  }
+})();
+</script>
+</body>
+</html>
